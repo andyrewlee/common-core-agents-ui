@@ -13,7 +13,7 @@ export async function GET() {
       method: "GET",
       headers: {
         "x-inkeep-tenant-id": "default",
-        "x-inkeep-graph-id": "weather-graph",
+        "x-inkeep-graph-id": "common-core-agents",
         "x-inkeep-project-id": "default",
       },
     });

@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const chatId: string | undefined = body?.id;
     const conversationId = bodyConversationId || chatId;
     // Hard-code the graph id as requested.
-    const graphId = "weather-graph";
+    const graphId = "common-core-agents";
     // Hard-code the tenant id and project id as requested.
     const tenantId = "default";
     const projectId = "default";

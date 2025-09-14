@@ -2,6 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+import { Copy } from "lucide-react";
 
 type UIPart =
   | { type: "text"; text: string }
@@ -77,7 +83,7 @@ export default function Page() {
         ]);
       }
     },
-  });
+  } as any);
 
   // Auto-scroll chat on new messages
   useEffect(() => {
@@ -133,48 +139,32 @@ export default function Page() {
       <section className="space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-xl font-semibold">Inkeep Multimodal Test UI</h1>
-          <span className="text-xs px-2 py-1 rounded border border-neutral-700 bg-neutral-800 text-neutral-200">{status}</span>
-          <button
-            type="button"
-            onClick={testConnection}
-            className="text-xs px-2 py-1 rounded border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
-            disabled={conn.state === "testing"}
-          >
+          <Badge className="uppercase tracking-wide">{status}</Badge>
+          <Button variant="outline" size="sm" onClick={testConnection} disabled={conn.state === "testing"}>
             {conn.state === "testing" ? "Testing…" : "Test Connection"}
-          </button>
+          </Button>
           {conn.state === "ok" ? (
-            <span className="text-xs px-2 py-1 rounded border border-green-800 bg-green-950 text-green-300">
-              OK{conn.status ? ` (${conn.status})` : ""}
-            </span>
+            <Badge variant="green">OK{conn.status ? ` (${conn.status})` : ""}</Badge>
           ) : conn.state === "fail" ? (
-            <span className="text-xs px-2 py-1 rounded border border-red-800 bg-red-950 text-red-300">
-              Failed{conn.status ? ` (${conn.status})` : ""}
-            </span>
+            <Badge variant="red">Failed{conn.status ? ` (${conn.status})` : ""}</Badge>
           ) : null}
           {conn.info ? (
             <span className="text-xs text-neutral-400">{conn.info}</span>
           ) : null}
-          <label className="ml-2 inline-flex items-center gap-1 text-xs text-neutral-300">
-            <input
-              type="checkbox"
-              className="accent-neutral-400"
-              checked={logAllParts}
-              onChange={(e) => setLogAllParts(e.target.checked)}
-            />
-            Log all stream events
+          <label className="ml-2 inline-flex items-center gap-2 text-xs text-neutral-300">
+            <span>Log all stream events</span>
+            <Switch checked={logAllParts} onCheckedChange={setLogAllParts} />
           </label>
-          <label className="inline-flex items-center gap-1 text-xs text-neutral-300">
-            <input
-              type="checkbox"
-              className="accent-neutral-400"
-              checked={showRaw}
-              onChange={(e) => setShowRaw(e.target.checked)}
-            />
-            Show raw
+          <label className="inline-flex items-center gap-2 text-xs text-neutral-300">
+            <span>Show raw</span>
+            <Switch checked={showRaw} onCheckedChange={setShowRaw} />
           </label>
         </div>
 
-        <div ref={chatScrollRef} className="border border-neutral-800 rounded p-3 h-[60vh] overflow-auto space-y-4 bg-neutral-900 text-neutral-100">
+        <div className="rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-100 h-[70vh] flex flex-col">
+          <div className="p-2 border-b border-neutral-800 text-sm text-neutral-400">Conversation</div>
+          <div className="flex-1 overflow-auto">
+            <div ref={chatScrollRef} className="p-3 space-y-4">
           {messages.map((m) => {
             const parts = m.parts ?? [];
             type RenderItem =
@@ -234,8 +224,25 @@ export default function Page() {
 
             return (
               <div key={m.id}>
-                <div className="text-[11px] tracking-wide text-neutral-400 mb-1 font-medium">
-                  {m.role.toUpperCase()}
+                <div className="text-[11px] tracking-wide text-neutral-400 mb-1 font-medium flex items-center gap-2">
+                  <span>{m.role.toUpperCase()}</span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    title="Copy message"
+                    onClick={() => {
+                      try {
+                        const text = (m.parts || [])
+                          .map((p: any) => (p?.type === "text" ? p.text : ""))
+                          .filter(Boolean)
+                          .join("\n");
+                        if (text) navigator.clipboard.writeText(text);
+                      } catch {}
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
                 </div>
                 {items.map((it, idx) => {
                   if (it.kind === "text") {
@@ -301,6 +308,8 @@ export default function Page() {
               </div>
             );
           })}
+            </div>
+          </div>
         </div>
 
         <form onSubmit={onSubmit} className="flex gap-2 items-center">
@@ -311,15 +320,13 @@ export default function Page() {
             ref={fileInputRef}
             onChange={(e) => setFiles(e.target.files || undefined)}
           />
-          <input
-            className="flex-1 border border-neutral-800 rounded p-2 bg-neutral-900 text-neutral-100 placeholder:text-neutral-500"
+          <Input
+            className="flex-1"
             placeholder="Type a message… (attach images if you like)"
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
-          <button type="submit" className="border border-neutral-700 rounded px-3 py-2 bg-neutral-800 text-neutral-100 hover:bg-neutral-700">
-            Send
-          </button>
+          <Button type="submit">Send</Button>
         </form>
       </section>
 
