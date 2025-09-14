@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Copy } from "lucide-react";
+import { useStickyAutoScroll } from "@/lib/use-sticky-auto-scroll";
 
 type UIPart =
   | { type: "text"; text: string }
-  | { type: "file"; mediaType?: string; url: string }
   | { type: "data-component"; data: any }
   | { type: "data-artifact"; data: any }
   | { type: "data-operation"; data: any }
@@ -27,29 +27,9 @@ type OperationEvent = {
   ctx?: Record<string, any>;
 };
 
-function bytesToBase64(data: ArrayBuffer) {
-  let binary = "";
-  const bytes = new Uint8Array(data);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-async function convertFilesToDataURLs(files: FileList) {
-  const results: Array<{ type: "file"; mediaType?: string; url: string }> = [];
-  for (const file of Array.from(files)) {
-    const buf = await file.arrayBuffer();
-    const b64 = bytesToBase64(buf);
-    const url = `data:${file.type};base64,${b64}`;
-    results.push({ type: "file", mediaType: file.type, url });
-  }
-  return results;
-}
-
 export default function Page() {
   const [input, setInput] = useState("");
-  const [files, setFiles] = useState<FileList | undefined>(undefined);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Image/PDF uploading removed: text-only chat
 
   const [ops, setOps] = useState<OperationEvent[]>([]);
   const [conn, setConn] = useState<{
@@ -60,6 +40,7 @@ export default function Page() {
   }>({ state: "idle" });
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const opsScrollRef = useRef<HTMLDivElement>(null);
   const [logAllParts, setLogAllParts] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
   const [rawParts, setRawParts] = useState<Array<{ t: number; part: any }>>([]);
@@ -85,11 +66,9 @@ export default function Page() {
     },
   } as any);
 
-  // Auto-scroll chat on new messages
-  useEffect(() => {
-    const el = chatScrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+  // Sticky auto-scroll for chat and activity logs
+  useStickyAutoScroll<HTMLDivElement>(chatScrollRef, [messages]);
+  useStickyAutoScroll<HTMLDivElement>(opsScrollRef, [ops]);
 
   async function testConnection() {
     try {
@@ -108,19 +87,12 @@ export default function Page() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const fileParts = files && files.length > 0 ? await convertFilesToDataURLs(files) : [];
-
     await sendMessage({
       role: "user",
-      parts: [
-        ...(input ? [{ type: "text", text: input }] : []),
-        ...fileParts,
-      ],
+      parts: input ? [{ type: "text", text: input }] : [],
     } as any);
 
     setInput("");
-    setFiles(undefined);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   return (
@@ -138,7 +110,7 @@ export default function Page() {
       ) : null}
       <section className="space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl font-semibold">Inkeep Multimodal Test UI</h1>
+          <h1 className="text-xl font-semibold">Common Core AI Teammate</h1>
           <Badge className="uppercase tracking-wide">{status}</Badge>
           <Button variant="outline" size="sm" onClick={testConnection} disabled={conn.state === "testing"}>
             {conn.state === "testing" ? "Testing…" : "Test Connection"}
@@ -163,8 +135,8 @@ export default function Page() {
 
         <div className="rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-100 h-[70vh] flex flex-col">
           <div className="p-2 border-b border-neutral-800 text-sm text-neutral-400">Conversation</div>
-          <div className="flex-1 overflow-auto">
-            <div ref={chatScrollRef} className="p-3 space-y-4">
+          <div className="flex-1 overflow-auto" ref={chatScrollRef}>
+            <div className="p-3 space-y-4">
           {messages.map((m) => {
             const parts = m.parts ?? [];
             type RenderItem =
@@ -313,13 +285,6 @@ export default function Page() {
         </div>
 
         <form onSubmit={onSubmit} className="flex gap-2 items-center">
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            multiple
-            ref={fileInputRef}
-            onChange={(e) => setFiles(e.target.files || undefined)}
-          />
           <Input
             className="flex-1"
             placeholder="Type a message… (attach images if you like)"
@@ -332,7 +297,7 @@ export default function Page() {
 
       <aside className="space-y-3">
         <h2 className="text-lg font-semibold">Agent & Tool Activity</h2>
-        <div className="border border-neutral-800 rounded p-3 h-[60vh] overflow-auto bg-neutral-900 text-neutral-100">
+        <div ref={opsScrollRef} className="border border-neutral-800 rounded p-3 h-[60vh] overflow-auto bg-neutral-900 text-neutral-100">
           {ops.length === 0 ? (
             <div className="text-sm text-neutral-500">No activity yet.</div>
           ) : (
